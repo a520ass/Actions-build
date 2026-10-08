@@ -80,7 +80,7 @@ jobs:
           set_desktop="${{ github.event.inputs.set_desktop }}"
           if  [[ "${set_desktop}" != "no" && -n "$(echo "${ARR_DESKTOP[@]}" | grep -w "${set_desktop}")" ]]; then
               # Desktop configuration: https://github.com/armbian/build/tree/master/config/desktop
-              str_desktop="BUILD_DESKTOP=yes DESKTOP_ENVIRONMENT=${set_desktop} DESKTOP_ENVIRONMENT_CONFIG_NAME=config_basic"
+              str_desktop="BUILD_DESKTOP=yes DESKTOP_ENVIRONMENT=${set_desktop} DESKTOP_ENVIRONMENT_CONFIG_NAME=config_basic DESKTOP_TIER=minimal"
               edition_name="${set_desktop}_desktop"
           else
               str_desktop="BUILD_DESKTOP=no"
