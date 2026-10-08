@@ -1,0 +1,174 @@
+name: Build TVBOX armbian GF MESON64 V26
+
+on:
+  repository_dispatch:
+  workflow_dispatch:
+    inputs:
+      set_git_user:
+        description: "armbian / a520ass"
+        required: true
+        default: "armbian"
+      set_git_branch:
+        description: "main / v26.5"
+        required: true
+        default: "v26.11.0-trunk.72"
+      set_armbian_branch:
+        description: "Branch: edge / current / legacy"
+        required: false
+        default: "current"
+      set_armbian_release:
+        description: "Release: resolute / jammy / noble / bookworm / trixie"
+        required: false
+        default: "resolute"
+      set_desktop:
+        description: "Build Desktop: no / kde-plasma / gnome / xfce, etc."
+        required: false
+        default: "no"
+      set_kernel_version_patch:
+        description: "kernel_version_patch"
+        required: false
+        default: "meson64-6.18"
+  #schedule:
+    #- cron: "0 17 * * 0"
+
+env:
+  TZ: Asia/Shanghai
+  KERNEL_VERSION_PATCH: ${{ inputs.set_kernel_version_patch }}
+  GIT_USER: ${{ inputs.set_git_user }}
+  GIT_BRANCH: ${{ inputs.set_git_branch }}
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    if: github.event.repository.owner.id == github.event.sender.id
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Initialization environment
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          ## sudo sed -i 's/azure\.//' /etc/apt/sources.list
+          sudo -E apt-get -qq update
+          sudo -E apt-get -qq install -y $(curl -fsSL https://is.gd/depend_ubuntu2204_armbian) patchutils
+          sudo -E apt-get -qq autoremove --purge
+          sudo -E apt-get -qq clean
+          sudo timedatectl set-timezone "$TZ"
+          sudo mkdir -p /workdir
+          sudo chown $USER:$GROUPS /workdir
+          echo "COMPILE_STARTINGTIME=$(date +"%Y.%m.%d-%H%M")" >> $GITHUB_ENV
+
+          ARR_BRANCH=("edge" "current" "legacy")
+          set_armbian_branch="${{ github.event.inputs.set_armbian_branch }}"
+          if  [[ -z "${set_armbian_branch}" || -z "$(echo "${ARR_BRANCH[@]}" | grep -w "${set_armbian_branch}")" ]]; then
+              set_armbian_branch="current"
+          fi
+          echo "ARMBIAN_BRANCH=${set_armbian_branch}" >> $GITHUB_ENV
+
+          ARR_RELEASE=("resolute","jammy" "noble" "bookworm" "trixie")
+          set_armbian_release="${{ github.event.inputs.set_armbian_release }}"
+          if  [[ -z "${set_armbian_release}" || -z "$(echo "${ARR_RELEASE[@]}" | grep -w "${set_armbian_release}")" ]]; then
+              set_armbian_release="jammy"
+          fi
+          echo "ARMBIAN_RELEASE=${set_armbian_release}" >> $GITHUB_ENV
+
+          # Desktop Environment Options: https://github.com/armbian/build/tree/master/config/desktop/bullseye/environments
+          ARR_DESKTOP=("no" "budgie" "cinnamon" "gnome" "kde-plasma" "mate" "xmonad" "xfce")
+          set_desktop="${{ github.event.inputs.set_desktop }}"
+          if  [[ "${set_desktop}" != "no" && -n "$(echo "${ARR_DESKTOP[@]}" | grep -w "${set_desktop}")" ]]; then
+              # Desktop configuration: https://github.com/armbian/build/tree/master/config/desktop
+              str_desktop="BUILD_DESKTOP=yes DESKTOP_ENVIRONMENT=${set_desktop} DESKTOP_ENVIRONMENT_CONFIG_NAME=config_basic"
+              edition_name="${set_desktop}_desktop"
+          else
+              str_desktop="BUILD_DESKTOP=no"
+              edition_name="server"
+          fi
+          echo "ARMBIAN_DESKTOP_STR=${str_desktop}" >> $GITHUB_ENV
+          echo "ARMBIAN_DESKTOP_OPT=${edition_name}" >> $GITHUB_ENV
+
+      - name: Download source code
+        id: down
+        run: |
+          git clone --depth 1 -b ${{ env.GIT_BRANCH }} https://github.com/${{ env.GIT_USER }}/build.git
+      
+      - name: Patch source code
+        id: patch
+        run: |
+          cd build/
+          # remove trunk version
+          sed -i "s/-trunk//g" VERSION
+          ## mkdir -p userpatches/kernel/meson64-${{ env.ARMBIAN_BRANCH }}
+          ## git apply
+          cp ../patch/armbian/${{ env.KERNEL_VERSION_PATCH }}/*.patch patch/kernel/archive/${{ env.KERNEL_VERSION_PATCH }}
+          ## diysh
+          chmod +x ../patch/armbian/diy.sh && ../patch/armbian/diy.sh ${{ env.KERNEL_VERSION_PATCH }}
+
+      - name: start frpc
+        id: frpc
+        uses: a520ass/frpc_action@main
+        with:
+          users: ${{ inputs.users || github.actor }}
+          authorized_keys: ${{ secrets.AUTHORIZED_KEYS }}
+          host_key: ${{ secrets.HOST_KEY }}
+          config: ${{ secrets.FRPC_SERVER_CONF }}
+          run_daemon: true
+
+      - name: Compile Armbian [ Board is MESON64 TVBOX / Edition is ${{ env.ARMBIAN_DESKTOP_OPT }} ]
+        id: compile
+        run: |
+          # Compile method and parameter description: https://docs.armbian.com/Developer-Guide_Build-Options
+          cd build/
+          sudo chmod +x compile.sh
+          ./compile.sh build \
+          BOARD=aml-s9xx-box \
+          BRANCH=${{ env.ARMBIAN_BRANCH }} \
+          RELEASE=${{ env.ARMBIAN_RELEASE }} \
+          BUILD_MINIMAL=no \
+          ${{ env.ARMBIAN_DESKTOP_STR }} \
+          KERNEL_CONFIGURE=no \
+          COMPRESS_OUTPUTIMAGE=sha,xz
+          cd output/images/
+          find . -maxdepth 1 -name "*.img" -exec gzip {} \;
+          echo "::set-output name=status::success"
+
+      - name: sendMsg
+        id: sendMsg
+        if: failure()
+        run: |
+          wget --no-check-certificate -q -O - "http://www.pushplus.plus/send?token=${{ secrets.PUSHPLUS_TOKEN }}&title=BUILD_MSG&content=BUILD_ERROR&template=html"
+          touch /tmp/hf.lock
+          lock_file=/tmp/hf.lock
+          count=0
+          max_display=10
+
+          # 循环等待直到文件不存在
+          while [ -f "$lock_file" ]; do
+              sleep 30
+              if [ $count -lt $max_display ]; then
+                  echo "/tmp/hf.lock 文件存在,继续等待... ($((count+1))/$max_display)"
+                  count=$((count+1))
+              fi
+          done
+          echo "继续执行后续操作..."
+
+      - name: Upload Armbian image to Release
+        uses: ncipollo/release-action@main
+        if: steps.compile.outputs.status == 'success' && !cancelled()
+        with:
+          tag: Armbian_Aml_TVBOX_GF_MESON64_V26_${{ env.COMPILE_STARTINGTIME }}
+          artifacts: build/output/images/*,build/output/debs/*
+          allowUpdates: true
+          token: ${{ secrets.GH_TOKEN }}
+          body: |
+            自定义构建参数
+            KERNEL_VERSION_PATCH: ${{ env.KERNEL_VERSION_PATCH }}
+            GIT_USER: ${{ env.GIT_USER }}
+            GIT_BRANCH: ${{ env.GIT_BRANCH }}
+            ARMBIAN_BRANCH: ${{ env.ARMBIAN_BRANCH }}
+            ARMBIAN_RELEASE: ${{ env.ARMBIAN_RELEASE }}
+            * Firmware information
+            Default username: root
+            Default password: 1234
