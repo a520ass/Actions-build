@@ -122,6 +122,7 @@ jobs:
           # Compile method and parameter description: https://docs.armbian.com/Developer-Guide_Build-Options
           cd build/
           sudo chmod +x compile.sh
+          sudo ./compile.sh requirements
           ./compile.sh build \
           BOARD=aml-s9xx-box \
           BRANCH=${{ env.ARMBIAN_BRANCH }} \
