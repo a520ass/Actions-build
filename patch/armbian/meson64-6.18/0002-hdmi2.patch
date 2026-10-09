@@ -1,0 +1,31 @@
+From 38bb14b37e19957803f580b67057ff56af66fe65 Mon Sep 17 00:00:00 2001
+From: codesnas <67037511+codesnas@users.noreply.github.com>
+Date: Mon, 27 Jul 2026 12:37:55 +0800
+Subject: [PATCH] drm/meson: reject modes above 4K30 on GXL SoCs due to
+ unstable 594MHz paths
+
+---
+ drivers/gpu/drm/meson/meson_encoder_hdmi.c | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+diff --git a/drivers/gpu/drm/meson/meson_encoder_hdmi.c b/drivers/gpu/drm/meson/meson_encoder_hdmi.c
+index 8205ee56a6..c61cd1be4f 100644
+--- a/drivers/gpu/drm/meson/meson_encoder_hdmi.c
++++ b/drivers/gpu/drm/meson/meson_encoder_hdmi.c
+@@ -134,6 +134,16 @@ static enum drm_mode_status meson_encoder_hdmi_mode_valid(struct drm_bridge *bri
+ 
+ 	dev_dbg(priv->dev, "Modeline " DRM_MODE_FMT "\n", DRM_MODE_ARG(mode));
+ 
++	/*
++	 * The 594MHz 4K50/60 paths are unstable on GXL (including GXLX2
++	 * such as the S905L3): the picture flickers with both the full
++	 * bandwidth and the YUV420 timings. Reject every mode above the
++	 * 4K30 pixel clock so these SoCs fall back to 4K30 or lower.
++	 */
++	if (meson_vpu_is_compatible(priv, VPU_COMPATIBLE_GXL) &&
++	    mode->clock > 340800)
++		return MODE_CLOCK_HIGH;
++
+ 	/* If sink does not support 540MHz, reject the non-420 HDMI2 modes */
+ 	if (display_info->max_tmds_clock &&
+ 	    mode->clock > display_info->max_tmds_clock &&
