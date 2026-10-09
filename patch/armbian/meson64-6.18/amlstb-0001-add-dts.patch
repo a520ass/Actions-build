@@ -282,7 +282,7 @@ new file mode 100644
 index 000000000..b014a5446
 --- /dev/null
 +++ b/arch/arm64/boot/dts/amlogic/meson-gxl-s905l3-b860av21u.dts
-@@ -0,0 +1,52 @@
+@@ -0,0 +1,72 @@
 +// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 +/*
 + * Copyright (c) 2016 Endless Computers, Inc.
@@ -320,8 +320,27 @@ index 000000000..b014a5446
 +		"pp0", "ppmmu0", "pp1", "ppmmu1";
 +};
 +
++/*
++ * The S905L2 is a lower-binned GXL chip and the Mali voltage rail is
++ * not controllable on this board (no mali-supply, so the OPP voltages
++ * are never applied). The top OPPs inherited from the S905W/X reference
++ * design are unstable: the system crashes at 744MHz. Limit the GPU to
++ * 500MHz.
++ */
++&gpu_opp_table {
++	opp-666666666 {
++		status = "disabled";
++	};
++
++	opp-744000000 {
++		status = "disabled";
++	};
++};
++
++/* GXLX2: DW-HDMI uses G12A-style direct register mapping */
 +&hdmi_tx {
-+	status = "disabled";
++	compatible = "amlogic,meson-g12a-dw-hdmi";
++	reg = <0x0 0xda800000 0x0 0x10000>;
 +};
 +
 +/* SD card */
