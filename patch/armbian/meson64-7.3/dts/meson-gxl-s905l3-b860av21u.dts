@@ -1,0 +1,71 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2016 Endless Computers, Inc.
+ * Author: Carlo Caione <carlo@endlessm.com>
+ */
+
+/dts-v1/;
+
+#include "meson-gxl-s905w-p281.dts"
+
+/ {
+	compatible = "zte,b860av21u", "amlogic,s905l3", "amlogic,meson-gxl";
+	model = "ZTE B860AV21U";
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x0 0x0 0x40000000>;
+	};
+};
+
+/* GPU */
+// the gpu in the S905L2 has one pp core less
+// (i.e. only two in total) than the one in the other S905X/W
+&mali {
+	status="okay";
+	interrupts = <GIC_SPI 160 IRQ_TYPE_LEVEL_HIGH>,
+		<GIC_SPI 161 IRQ_TYPE_LEVEL_HIGH>,
+		<GIC_SPI 162 IRQ_TYPE_LEVEL_HIGH>,
+		<GIC_SPI 163 IRQ_TYPE_LEVEL_HIGH>,
+		<GIC_SPI 164 IRQ_TYPE_LEVEL_HIGH>,
+		<GIC_SPI 165 IRQ_TYPE_LEVEL_HIGH>,
+		<GIC_SPI 166 IRQ_TYPE_LEVEL_HIGH>,
+		<GIC_SPI 167 IRQ_TYPE_LEVEL_HIGH>;
+	interrupt-names = "gp", "gpmmu", "pp", "pmu",
+		"pp0", "ppmmu0", "pp1", "ppmmu1";
+};
+
+/*
+ * The S905L2 is a lower-binned GXL chip and the Mali voltage rail is
+ * not controllable on this board (no mali-supply, so the OPP voltages
+ * are never applied). The top OPPs inherited from the S905W/X reference
+ * design are unstable: the system crashes at 744MHz. Limit the GPU to
+ * 500MHz.
+ */
+&gpu_opp_table {
+	opp-666666666 {
+		status = "disabled";
+	};
+
+	opp-744000000 {
+		status = "disabled";
+	};
+};
+
+/* GXLX2: DW-HDMI uses G12A-style direct register mapping */
+&hdmi_tx {
+	compatible = "amlogic,meson-g12a-dw-hdmi";
+	reg = <0x0 0xda800000 0x0 0x10000>;
+};
+
+/* SD card */
+&sd_emmc_b {
+	status = "okay";
+	max-frequency = <25000000>;
+};
+
+/* eMMC */
+&sd_emmc_c {
+	status = "okay";
+	max-frequency = <50000000>;
+};

@@ -1,0 +1,41 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * hf
+ */
+
+/dts-v1/;
+
+#include "meson-gxl-s905x-p212.dts"
+
+/ {
+	compatible = "bestv,r3300l", "amlogic,s905l", "amlogic,meson-gxl";
+	model = "BESTV R3300L";
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x0 0x0 0x40000000>;
+	};
+};
+
+/* Wireless SDIO Module */
+&sd_emmc_a {
+	status = "okay";
+	/*
+	 * Explicitly define the sdio device, so that we can add an ethernet
+	 * alias for it (which e.g. makes u-boot set a mac-address).
+	 */
+	rtl8189ftv: sdio_wifi@1 {
+		reg = <1>;
+	};
+};
+
+/* eMMC */
+&sd_emmc_c {
+	status = "okay";
+};
+
+/* This is connected to the Bluetooth module: */
+&uart_A {
+	status = "okay";
+	/delete-node/ bluetooth;
+};
