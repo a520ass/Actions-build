@@ -81,6 +81,8 @@ jobs:
               fi
           done
           cp ../patch/${{ github.event.inputs.set_kernel_patch_version }}/defconfig arch/arm64/configs/diy_defconfig
+          ## diysh
+          chmod +x ../patch/diy.sh && ../patch/diy.sh ${{ github.event.inputs.set_kernel_patch_version }}
 
       - name: Compile
         id: compile
