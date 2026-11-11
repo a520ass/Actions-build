@@ -1,0 +1,37 @@
+diff --git a/drivers/net/wireless/ath/wcn36xx/main.c b/drivers/net/wireless/ath/wcn36xx/main.c
+index 02a525645..b438182c1 100644
+--- a/drivers/net/wireless/ath/wcn36xx/main.c
++++ b/drivers/net/wireless/ath/wcn36xx/main.c
+@@ -133,21 +133,9 @@ static struct ieee80211_supported_band wcn_band_2ghz = {
+ 	.n_channels	= ARRAY_SIZE(wcn_2ghz_channels),
+ 	.bitrates	= wcn_2ghz_rates,
+ 	.n_bitrates	= ARRAY_SIZE(wcn_2ghz_rates),
+-	.ht_cap		= {
+-		.cap =	IEEE80211_HT_CAP_GRN_FLD |
+-			IEEE80211_HT_CAP_SGI_20 |
+-			IEEE80211_HT_CAP_DSSSCCK40 |
+-			IEEE80211_HT_CAP_LSIG_TXOP_PROT |
+-			IEEE80211_HT_CAP_SGI_40 |
+-			IEEE80211_HT_CAP_SUP_WIDTH_20_40,
+-		.ht_supported = true,
+-		.ampdu_factor = IEEE80211_HT_MAX_AMPDU_64K,
+-		.ampdu_density = IEEE80211_HT_MPDU_DENSITY_16,
+-		.mcs = {
+-			.rx_mask = { 0xff, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+-			.rx_highest = cpu_to_le16(72),
+-			.tx_params = IEEE80211_HT_MCS_TX_DEFINED,
+-		}
++	.ht_cap     = {
++		.cap = 0,
++		.ht_supported = false,        // 关闭HT = 关闭AMPDU
+ 	}
+ };
+ 
+@@ -620,6 +608,7 @@ static int wcn36xx_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
+ 		goto out;
+ 	}
+ 
++	vif_priv->encrypt_type = WCN36XX_HAL_ED_NONE;	 // 禁用硬件加密
+ out:
+ 	mutex_unlock(&wcn->conf_mutex);
+ 
