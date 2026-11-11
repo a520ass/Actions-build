@@ -17,7 +17,8 @@ echo "DTS_DST=${DTS_DST}"
 
 cp -rf "${DTS_SRC}"/*.dts "${DTS_DST}/"
 
-# 调用同目录 addMakefileDtb.sh
-"${SCRIPT_DIR}/addMakefileDtb.sh" "${DTS_SRC}" "${MAKEFILE}" "${CONFIG_TAG}"
+# 调用addMakefileDtb.sh
+"${SCRIPT_DIR}/../addMakefileDtb.sh" "${DTS_SRC}" "${MAKEFILE}" "${CONFIG_TAG}"
 
 echo "002.sh 钩子执行完成"
+
