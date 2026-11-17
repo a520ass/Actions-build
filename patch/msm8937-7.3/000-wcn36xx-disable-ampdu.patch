@@ -1,0 +1,32 @@
+From: msm8937 land kernel
+Subject: [PATCH] wcn36xx: disable AMPDU aggregation
+
+Disable 802.11n AMPDU aggregation while keeping HT rates (MCS 0-7)
+enabled. This is a targeted workaround for throughput stalls /
+retransmit storms on the msm8937 WCN3680B when the firmware's
+Immediate-BA aggregation path misbehaves.
+
+Unlike disabling HT entirely (ht_supported = false), this keeps the
+~65 Mbps single-stream HT20 ceiling and only drops multi-frame
+aggregation, losing roughly 10-15% of peak throughput instead of
+halving it.
+
+Signed-off-by: land kernel <land@localhost>
+---
+ drivers/net/wireless/ath/wcn36xx/main.c | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/drivers/net/wireless/ath/wcn36xx/main.c b/drivers/net/wireless/ath/wcn36xx/main.c
+index 02a525645..b438182c1 100644
+--- a/drivers/net/wireless/ath/wcn36xx/main.c
++++ b/drivers/net/wireless/ath/wcn36xx/main.c
+@@ -1425,7 +1425,6 @@ static int wcn36xx_init_ieee80211(struct wcn36xx *wcn)
+ 	};
+ 
+ 	ieee80211_hw_set(wcn->hw, TIMING_BEACON_ONLY);
+-	ieee80211_hw_set(wcn->hw, AMPDU_AGGREGATION);
+ 	ieee80211_hw_set(wcn->hw, SUPPORTS_PS);
+ 	ieee80211_hw_set(wcn->hw, SIGNAL_DBM);
+ 	ieee80211_hw_set(wcn->hw, HAS_RATE_CONTROL);
+-- 
+2.43.0
